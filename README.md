@@ -1,4 +1,4 @@
-# MethSmoothEval (Group 6, 2025 BCM HGSC SVcrying Hackathon)
+# MethSmoothEval (Group 6 - 2025 BCM HGSC SVcrying Hackathon)
 ## Group members
 Yilei Fu (👑 Group Lead),
 Robel Dagnew, 
