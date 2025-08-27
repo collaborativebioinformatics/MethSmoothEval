@@ -6,8 +6,6 @@ Flowchart of MethSmoothEval
 ![Flowchart](img/flowchart.svg)
 
 
-# Smoothing or Losing? Revisiting Methylation Signal Processing in the Long-Read Era
-
 ## 🎯 Target
 This project investigates whether smoothing of DNA methylation signals—historically essential in short-read bisulfite sequencing (WGBS)—is still necessary in the era of high-accuracy long-read sequencing (ONT, PacBio).  
 
