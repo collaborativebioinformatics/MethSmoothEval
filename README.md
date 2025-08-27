@@ -1,6 +1,6 @@
-## MethSmoothEval
-# Pipeline flowchart
-# Introduction
-# Methods
-# Results
-# Discussion
+# MethSmoothEval
+## Pipeline flowchart
+## Introduction
+## Methods
+## Results
+## Discussion
