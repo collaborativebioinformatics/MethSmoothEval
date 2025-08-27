@@ -1,17 +1,17 @@
 # MethSmoothEval (Group 6, 2025 BCM HGSC SVcrying Hackathon)
 ## Group members
-Yilei Fu (👑 Group Lead)
-Robel Dagnew 
-Jon Moller
-Rohit Kolora
-Alex Leonard
-Halimat Atanda 
-Arijita Sarkar
-Senthilkumar Kailasam
-Zahra Seyfollahi
-Nilabja Bhattacharjee 
-Sarah Eger
-Michael Olufemi
+Yilei Fu (👑 Group Lead),
+Robel Dagnew, 
+Jon Moller,
+Rohit Kolora,
+Alex Leonard,
+Halimat Atanda, 
+Arijita Sarkar,
+Senthilkumar Kailasam,
+Zahra Seyfollahi,
+Nilabja Bhattacharjee,
+Sarah Eger,
+Michael Olufemi,
 Ben Braun
 ## Pipeline flowchart
 ## Introduction
