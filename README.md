@@ -20,3 +20,4 @@ While the gold standard for DNA methylation detection is bisulfite sequencing, t
 ## Methods
 ## Results
 ## Discussion
+## References
