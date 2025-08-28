@@ -1,0 +1,7 @@
+name: metilene
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - bioconda::metilene
+prefix: /opt/conda/envs/metilene
