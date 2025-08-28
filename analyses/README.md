@@ -1,6 +1,7 @@
 ### Running the tools 
-1) Activate respective environments
-2) Check for directory structure - the dataset directory is one dir prior to the bash scripts (restricting to human data)
+- Activate respective environments
+- Check for directory structure - the dataset directory is one dir prior to the bash scripts (restricting to human data)
+```bash
 scripts/
 ├── run_modkit.sh
 └── run_pbcpgtools.sh
@@ -24,14 +25,19 @@ datasets/
     ├── GCA_000001405.15_GRCh38_no_alt_analysis_set.fa
     ├── GCA_000001405.15_GRCh38_no_alt_analysis_set.fa.fai
     ├── GCA_000001405.15_GRCh38_no_alt_analysis_set.mmi
-3) Execute the bash scripts
+```
+- Execute the bash scripts
 
 Example :
 conda env create -f envs/pbcpgtools.yml
 cd scripts/ && bash scripts/run_pbcpgtools.sh
 
-4) Workflow for PacBio data analysis
-- Creating Methylation calls : Activate conda env pbcpgtools.yml and execute cpgtools script
-  run_pbcpgtools.sh
-- Running Metilene for DMR calls : Activate conda env metilene.yml and execute in this order 
-  create_pacbio_bedgraph.sh -> create_pacbio_pairs.sh -> run_pacbio_metilene.sh
+#### Workflow for PacBio data analysis
+1) Creating Methylation calls : Activate conda env pbcpgtools.yml and execute cpgtools script
+```bash
+  bash run_pbcpgtools.sh
+```
+2) Running Metilene for DMR calls : Activate conda env metilene.yml and execute in this order 
+```bash
+  bash create_pacbio_bedgraph.sh && bash create_pacbio_pairs.sh && bash run_pacbio_metilene.sh
+```
