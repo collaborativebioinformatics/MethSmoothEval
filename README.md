@@ -1,18 +1,18 @@
 # MethSmoothEval (Group 6 - 2025 BCM HGSC SVcrying Hackathon)
 ## Group members
-Yilei Fu (👑 Group Lead),
-Robel Dagnew, 
-Jon Moller,
-Rohit Kolora,
-Alex Leonard,
-Halimat Atanda, 
-Arijita Sarkar,
-Senthilkumar Kailasam,
-Zahra Seyfollahi,
+[Yilei Fu (👑 Group Lead)](https://github.com/Fu-Yilei),
+[Robel Dagnew](https://github.com/redndgreen8), 
+[Jon Moller](https://github.com/molleraj),
+[Rohit Kolora](https://github.com/evolgen),
+[Alex Leonard](https://github.com/ASLeonard),
+[Halimat Atanda](https://github.com/chisomgold), 
+[Arijita Sarkar](https://github.com/arijita88),
+[Senthilkumar Kailasam](https://github.com/dksenthil),
+[Zahra Seyfollahi](https://github.com/ZSeyfollahi),
 Nilabja Bhattacharjee,
-Sarah Eger,
-Michael Olufemi,
-Ben Braun
+[Sarah Eger](https://github.com/saraheger),
+[Michael Olufemi](https://github.com/michael-olufemi),
+[Ben Braun](https://github.com/bennibraun)
 ## Pipeline flowchart
 ![flowchart](https://github.com/user-attachments/assets/c10a1b3b-0263-4124-b7d9-cea9100bcd6f)
 ## Introduction
