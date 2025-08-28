@@ -2,7 +2,7 @@
 
 set -e
 
-mkdir -p output/metilene/ && cd output/metilene/ ;
+mkdir -p outputs/metilene/ && cd outputs/metilene/ ;
 mkdir -p inputs/ results/ ;
 
 cat lst_pairs_bedgraph.txt | while read line1; do 

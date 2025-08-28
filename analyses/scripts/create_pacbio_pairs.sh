@@ -2,7 +2,7 @@
 
 set -e
 
-mkdir -p output/metilene && cd output/metilene ;
+mkdir -p outputs/metilene && cd outputs/metilene ;
 
 \ls -d /opt/notebooks/outputs/filt_bedgraph/* >lst_files_bedgraph.txt ;
 
