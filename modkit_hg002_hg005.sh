@@ -31,8 +31,10 @@ tabix -p bed "${DIR}/analysis/Sarah_analysis/human_ONT/HG005.ont.chr22.cpg.bed.g
 modkit dmr pair \
     -a "${DIR}/analysis/Sarah_analysis/human_ONT/HG002.ont.chr22.cpg.bed.gz" \
     -b "${DIR}/analysis/Sarah_analysis/human_ONT/HG005.ont.chr22.cpg.bed.gz" \
-    -o "${DIR}/analysis/Sarah_analysis/human_ONT/single_base_dmr_HG002_and_HG005.bed" \
+    -o "${DIR}/analysis/Sarah_analysis/human_ONT/single_base_dmr_HG002_vs_HG005.bed" \
+	--segment "${DIR}/analysis/Sarah_analysis/human_ONT/HG002_vs_HG005_segments.txt" \
+	--fine-grained \
     --ref ${REF} \
     --base C \
     --threads 30 \
-    --log-filepath "${DIR}/analysis/Sarah_analysis/human_ONT/single_base_dmr_HG002_and_HG005.log"
+    --log-filepath "${DIR}/analysis/Sarah_analysis/human_ONT/single_base_dmr_HG002_vs_HG005.log"
