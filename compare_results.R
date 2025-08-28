@@ -1,118 +1,179 @@
-# compare_results.R
-# Compare DMR results between smoothed and raw data
-
-# Load both result files
-dmr_raw <- read.table("dmr_results_raw.txt", header=TRUE, sep="\t")
-dmr_smoothed <- read.table("dmr_results_smoothed.txt", header=TRUE, sep="\t")
-
-dml_raw <- read.table("significant_dmls_raw.txt", header=TRUE, sep="\t")
-dml_smoothed <- read.table("significant_dmls_smoothed.txt", header=TRUE, sep="\t")
+# compare_longread_results.R
+# Compare smoothing effects on long-read DMR detection
 
 cat("=============================================================================\n")
-cat("COMPARISON: RAW vs SMOOTHED DATA ANALYSIS\n")
+cat("LONG-READ SMOOTHING EFFECTS COMPARISON\n")
 cat("=============================================================================\n\n")
 
-# Compare DMR counts
-cat("DMR COMPARISON:\n")
-cat("---------------\n")
-cat(paste("Raw data DMRs:", nrow(dmr_raw), "\n"))
-cat(paste("Smoothed data DMRs:", nrow(dmr_smoothed), "\n"))
-cat(paste("Difference:", nrow(dmr_smoothed) - nrow(dmr_raw), "\n\n"))
+# Define analysis types
+analysis_types <- c(
+  "longread_ONT_vs_PacBio",
+  "longread_tissue_lung", 
+  "longread_tissue_liver",
+  "longread_tissue_colon",
+  "HG002_ONT_vs_EMSeq",
+  "HG002_PacBio_vs_EMSeq"
+)
 
-# Compare DML counts
-cat("DML COMPARISON:\n")
-cat("---------------\n")
-cat(paste("Raw data significant DMLs:", nrow(dml_raw), "\n"))
-cat(paste("Smoothed data significant DMLs:", nrow(dml_smoothed), "\n"))
-cat(paste("Difference:", nrow(dml_smoothed) - nrow(dml_raw), "\n\n"))
+# Initialize storage
+comparison_results <- list()
+summary_df <- data.frame(
+  Analysis = character(),
+  Raw_DMLs = numeric(),
+  Smoothed_DMLs = numeric(),
+  Raw_DMRs = numeric(),
+  Smoothed_DMRs = numeric(),
+  DML_Fold = numeric(),
+  DMR_Fold = numeric(),
+  stringsAsFactors = FALSE
+)
 
-if(nrow(dmr_raw) > 0 && nrow(dmr_smoothed) > 0) {
+# =============================================================================
+# LOAD AND COMPARE RESULTS
+# =============================================================================
+
+for(analysis in analysis_types) {
+  cat(paste("Processing", analysis, "..."))
   
-  # Compare DMR characteristics
-  cat("DMR CHARACTERISTICS COMPARISON:\n")
-  cat("-------------------------------\n")
+  # File paths
+  dml_raw_file <- paste0(analysis, "_dmls_raw.txt")
+  dml_smooth_file <- paste0(analysis, "_dmls_smoothed.txt")
+  dmr_raw_file <- paste0(analysis, "_dmrs_raw.txt")
+  dmr_smooth_file <- paste0(analysis, "_dmrs_smoothed.txt")
   
-  comparison_df <- data.frame(
-    Metric = c("Mean Length (bp)", "Median Length (bp)", 
-               "Mean CpGs per DMR", "Median CpGs per DMR",
-               "Mean |Methylation Difference|", "Median |Methylation Difference|"),
-    Raw = c(round(mean(dmr_raw$length), 1), round(median(dmr_raw$length), 1),
-            round(mean(dmr_raw$nCG), 1), round(median(dmr_raw$nCG), 1),
-            round(mean(abs(dmr_raw$meanMethy1 - dmr_raw$meanMethy2)), 3),
-            round(median(abs(dmr_raw$meanMethy1 - dmr_raw$meanMethy2)), 3)),
-    Smoothed = c(round(mean(dmr_smoothed$length), 1), round(median(dmr_smoothed$length), 1),
-                 round(mean(dmr_smoothed$nCG), 1), round(median(dmr_smoothed$nCG), 1),
-                 round(mean(abs(dmr_smoothed$meanMethy1 - dmr_smoothed$meanMethy2)), 3),
-                 round(median(abs(dmr_smoothed$meanMethy1 - dmr_smoothed$meanMethy2)), 3))
+  # Load files
+  dml_raw <- if(file.exists(dml_raw_file)) read.table(dml_raw_file, header=TRUE, sep="\t") else data.frame()
+  dml_smooth <- if(file.exists(dml_smooth_file)) read.table(dml_smooth_file, header=TRUE, sep="\t") else data.frame()
+  dmr_raw <- if(file.exists(dmr_raw_file)) read.table(dmr_raw_file, header=TRUE, sep="\t") else data.frame()
+  dmr_smooth <- if(file.exists(dmr_smooth_file)) read.table(dmr_smooth_file, header=TRUE, sep="\t") else data.frame()
+  
+  # Calculate fold changes
+  dml_fold <- ifelse(nrow(dml_raw) > 0, nrow(dml_smooth) / nrow(dml_raw), 
+                     ifelse(nrow(dml_smooth) > 0, Inf, 1))
+  dmr_fold <- ifelse(nrow(dmr_raw) > 0, nrow(dmr_smooth) / nrow(dmr_raw), 
+                     ifelse(nrow(dmr_smooth) > 0, Inf, 1))
+  
+  # Store results
+  comparison_results[[analysis]] <- list(
+    dml_raw = dml_raw, dml_smooth = dml_smooth,
+    dmr_raw = dmr_raw, dmr_smooth = dmr_smooth
   )
   
-  print(comparison_df)
-  cat("\n")
+  # Add to summary
+  summary_df <- rbind(summary_df, data.frame(
+    Analysis = analysis,
+    Raw_DMLs = nrow(dml_raw),
+    Smoothed_DMLs = nrow(dml_smooth),
+    Raw_DMRs = nrow(dmr_raw),
+    Smoothed_DMRs = nrow(dmr_smooth),
+    DML_Fold = round(dml_fold, 2),
+    DMR_Fold = round(dmr_fold, 2)
+  ))
   
-  # Create comparison plots
-  cat("Generating comparison plots...\n")
-  if(!dir.exists("comparison_plots")) dir.create("comparison_plots")
-  
-  # Side-by-side histograms for DMR length
-  png("comparison_plots/dmr_length_comparison.png", width=1200, height=600)
-  par(mfrow=c(1,2))
-  hist(dmr_raw$length, breaks=30, main="DMR Length - Raw Data", 
-       xlab="Length (bp)", col="lightblue", xlim=c(0, max(c(dmr_raw$length, dmr_smoothed$length))))
-  hist(dmr_smoothed$length, breaks=30, main="DMR Length - Smoothed Data", 
-       xlab="Length (bp)", col="lightgreen", xlim=c(0, max(c(dmr_raw$length, dmr_smoothed$length))))
-  dev.off()
-  
-  # Side-by-side histograms for CpG count
-  png("comparison_plots/dmr_cpg_comparison.png", width=1200, height=600)
-  par(mfrow=c(1,2))
-  hist(dmr_raw$nCG, breaks=20, main="CpGs per DMR - Raw Data", 
-       xlab="Number of CpGs", col="lightblue", xlim=c(0, max(c(dmr_raw$nCG, dmr_smoothed$nCG))))
-  hist(dmr_smoothed$nCG, breaks=20, main="CpGs per DMR - Smoothed Data", 
-       xlab="Number of CpGs", col="lightgreen", xlim=c(0, max(c(dmr_raw$nCG, dmr_smoothed$nCG))))
-  dev.off()
-  
-  # Methylation difference comparison
-  png("comparison_plots/methylation_diff_comparison.png", width=1200, height=600)
-  par(mfrow=c(1,2))
-  meth_diff_raw <- abs(dmr_raw$meanMethy1 - dmr_raw$meanMethy2)
-  meth_diff_smooth <- abs(dmr_smoothed$meanMethy1 - dmr_smoothed$meanMethy2)
-  hist(meth_diff_raw, breaks=20, main="Methylation Difference - Raw Data", 
-       xlab="|Methylation Difference|", col="lightblue", 
-       xlim=c(0, max(c(meth_diff_raw, meth_diff_smooth))))
-  hist(meth_diff_smooth, breaks=20, main="Methylation Difference - Smoothed Data", 
-       xlab="|Methylation Difference|", col="lightgreen", 
-       xlim=c(0, max(c(meth_diff_raw, meth_diff_smooth))))
-  dev.off()
-  
-  cat("Comparison plots saved to comparison_plots/ directory\n\n")
+  cat(paste(" DMLs:", nrow(dml_raw), "→", nrow(dml_smooth), 
+            "| DMRs:", nrow(dmr_raw), "→", nrow(dmr_smooth), "\n"))
 }
 
-# Check for overlapping DMRs (basic genomic overlap)
-if(nrow(dmr_raw) > 0 && nrow(dmr_smoothed) > 0) {
-  cat("GENOMIC OVERLAP ANALYSIS:\n")
-  cat("-------------------------\n")
-  
-  # Simple overlap check (same chromosome and overlapping coordinates)
-  overlaps <- 0
-  for(i in 1:nrow(dmr_raw)) {
-    raw_chr <- dmr_raw$chr[i]
-    raw_start <- dmr_raw$start[i]
-    raw_end <- dmr_raw$end[i]
-    
-    # Check if any smoothed DMR overlaps with this raw DMR
-    overlap_found <- any(
-      dmr_smoothed$chr == raw_chr &
-      dmr_smoothed$start <= raw_end &
-      dmr_smoothed$end >= raw_start
-    )
-    
-    if(overlap_found) overlaps <- overlaps + 1
+# =============================================================================
+# SMOOTHING EFFECTS SUMMARY
+# =============================================================================
+
+cat("\nSMOOTHING EFFECTS SUMMARY:\n")
+print(summary_df)
+
+# Platform-specific effects
+longread_platform <- summary_df[summary_df$Analysis == "longread_ONT_vs_PacBio", ]
+hg002_effects <- summary_df[grepl("HG002", summary_df$Analysis), ]
+
+cat("\n=== KEY FINDINGS ===\n")
+if(nrow(longread_platform) > 0) {
+  cat("ONT vs PacBio smoothing effect:\n")
+  cat(paste("- DML fold change:", longread_platform$DML_Fold, "\n"))
+  cat(paste("- DMR fold change:", longread_platform$DMR_Fold, "\n"))
+}
+
+if(nrow(hg002_effects) > 0) {
+  cat("HG002 long-read vs short-read:\n")
+  for(i in 1:nrow(hg002_effects)) {
+    row <- hg002_effects[i, ]
+    cat(paste("- ", row$Analysis, ": DMR fold =", row$DMR_Fold, "\n"))
   }
-  
-  cat(paste("Raw DMRs with genomic overlap in smoothed results:", overlaps, "\n"))
-  cat(paste("Percentage overlap:", round(100 * overlaps / nrow(dmr_raw), 1), "%\n\n"))
 }
 
+# =============================================================================
+# OVERLAP ANALYSIS
+# =============================================================================
+
+cat("\n=== DMR OVERLAP ANALYSIS ===\n")
+for(analysis in names(comparison_results)) {
+  result <- comparison_results[[analysis]]
+  dmr_raw <- result$dmr_raw
+  dmr_smooth <- result$dmr_smooth
+  
+  if(nrow(dmr_raw) > 0 && nrow(dmr_smooth) > 0) {
+    # Simple overlap check
+    overlaps <- 0
+    for(i in 1:nrow(dmr_raw)) {
+      overlap_found <- any(
+        dmr_smooth$chr == dmr_raw$chr[i] &
+        dmr_smooth$start <= dmr_raw$end[i] &
+        dmr_smooth$end >= dmr_raw$start[i]
+      )
+      if(overlap_found) overlaps <- overlaps + 1
+    }
+    
+    overlap_pct <- round(100 * overlaps / nrow(dmr_raw), 1)
+    cat(paste(analysis, "- Overlap:", overlap_pct, "%\n"))
+  }
+}
+
+# =============================================================================
+# VISUALIZATION
+# =============================================================================
+
+if(!dir.exists("smoothing_plots")) dir.create("smoothing_plots")
+
+# Main comparison plot
+png("smoothing_plots/smoothing_effects_summary.png", width=1200, height=800)
+par(mfrow=c(2,2))
+
+# DML effects
+barplot(summary_df$DML_Fold, names.arg=summary_df$Analysis,
+        main="DML Smoothing Effects", col="lightblue", las=2, cex.names=0.7)
+abline(h=1, lty=2, col="red")
+
+# DMR effects
+barplot(summary_df$DMR_Fold, names.arg=summary_df$Analysis,
+        main="DMR Smoothing Effects", col="lightgreen", las=2, cex.names=0.7)
+abline(h=1, lty=2, col="red")
+
+# Raw vs smoothed counts
+barplot(t(as.matrix(summary_df[,c("Raw_DMRs", "Smoothed_DMRs")])), 
+        beside=TRUE, names.arg=summary_df$Analysis,
+        main="DMR Counts: Raw vs Smoothed", col=c("orange", "purple"),
+        las=2, legend.text=c("Raw", "Smoothed"), cex.names=0.7)
+
+# Focus on platform comparison
+platform_idx <- which(summary_df$Analysis == "longread_ONT_vs_PacBio")
+if(length(platform_idx) > 0) {
+  barplot(c(summary_df$DML_Fold[platform_idx], summary_df$DMR_Fold[platform_idx]),
+          names.arg=c("DML Fold", "DMR Fold"),
+          main="ONT vs PacBio Smoothing Effect", col="cyan")
+  abline(h=1, lty=2, col="red")
+}
+
+dev.off()
+
+# =============================================================================
+# SAVE RESULTS
+# =============================================================================
+
+write.table(summary_df, "smoothing_effects_summary.txt", sep="\t", row.names=FALSE, quote=FALSE)
+
+cat("\n=============================================================================\n")
+cat("SMOOTHING COMPARISON COMPLETE\n")
 cat("=============================================================================\n")
-cat("Comparison complete!\n")
+cat("Generated:\n")
+cat("- smoothing_effects_summary.txt\n")
+cat("- smoothing_plots/smoothing_effects_summary.png\n")
 cat("=============================================================================\n")
