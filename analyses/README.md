@@ -29,4 +29,9 @@ datasets/
 Example :
 conda env create -f envs/pbcpgtools.yml
 cd scripts/ && bash scripts/run_pbcpgtools.sh
- 
+
+4) Workflow for PacBio data analysis
+- Creating Methylation calls : Activate conda env pbcpgtools.yml and execute cpgtools script
+  run_pbcpgtools.sh
+- Running Metilene for DMR calls : Activate conda env metilene.yml and execute in this order 
+  create_pacbio_bedgraph.sh -> create_pacbio_pairs.sh -> run_pacbio_metilene.sh
