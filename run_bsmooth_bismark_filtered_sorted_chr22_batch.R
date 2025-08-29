@@ -1,10 +1,3 @@
-#!/usr/bin/env Rscript
-
-# Batch BSmooth Analysis for Multiple Bismark BEDGraph files
-# Processes all files listed in a manifest file
-# Filters: chromosome 22, coverage >= 5
-# Output: BEDGraph files with smoothed methylation values
-
 # Load required libraries
 library(bsseq)
 library(GenomicRanges)
