@@ -5,7 +5,7 @@ set -e
 mkdir -p outputs/metilene/ && cd outputs/metilene/ ;
 mkdir -p inputs/ results/ ;
 
-cat lst_pairs_bedgraph.txt | while read line1; do 
+cat lst_pairs_bedgraph.pacbio.txt | while read line1; do 
   file1=$(echo $line1 | sed -e 's/ .*//'); 
   file2=$(echo $line1 | sed -e 's/.* //');
   name1=$(basename "$file1" | sed -e 's/.chr22.*//' -e 's/.pacbio.*//') ;
