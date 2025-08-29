@@ -95,7 +95,7 @@ Mean density: 1.30 CpGs/kb
 Std density: 1.85 CpGs/kb
 Max density: 12.45 CpGs/kb
 ```
-![CpG density in HG002 (10kb)](analysis/hg002.22_cpg_density_10kb.png)
+![CpG density in HG002 (10kb)](hg002.22_cpg_density_10kb.png)
 
 ## Interpretation
 
