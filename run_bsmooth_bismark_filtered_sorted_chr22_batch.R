@@ -6,7 +6,7 @@ library(data.table)
 # 1. Define Paths and Parameters
 # -----------------------------------------------------------
 manifest_file <- "list_bedgraph"  # File containing list of BEDGraph paths
-base_dir <- "/lustre07/scratch/senthil/Hackthon_2025/"  # Base directory for paths
+base_dir <- "path_to/Hackthon_2025/"  # Base directory for paths
 output_dir <- paste0(base_dir, "analysis/BSmooth_results/")  # Output directory
 
 # Create the output directory if it doesn't exist
