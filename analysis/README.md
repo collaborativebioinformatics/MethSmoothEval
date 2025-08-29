@@ -95,6 +95,9 @@ Mean density: 1.30 CpGs/kb
 Std density: 1.85 CpGs/kb
 Max density: 12.45 CpGs/kb
 ```
+
+### CpG density in HG002 (10kb)
+
 ![CpG density in HG002 (10kb)](hg002.22_cpg_density_10kb.png)
 
 ## Interpretation
@@ -208,6 +211,10 @@ aligned_bam_to_cpg_scores pileup \
 
 Since pb-cpg-tools automatically generates BigWig files, you can directly compare model vs count modes
 
+#### IGV example of discrepancies
+
+![IGV HG002](IGV2.png)
+
 
 #### Running the Mode Comparison
 
@@ -219,6 +226,15 @@ python3 compare_methylation_modes.py \
   --region chr22:20000000-25000000 \
   --output HG002_chr22_comparison
 ```
+
+#### Both modes analyze identical CpG sites, but the model mode is doing value processing, not position filtering
+
+![Data distribution shift summary ](HG002_chr22_data_summary.png)
+
+#### Pileup comparison and smoothing effect
+
+![Pileup comparison ](HG002_chr22_mode_comparison.png)
+
 
 ## Genome Browser Visualization
 
