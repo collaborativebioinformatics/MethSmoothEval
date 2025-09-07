@@ -4,6 +4,8 @@
 # Configuration
 CONTAINER_NAME="dss-methylation-lab"
 IMAGE_NAME="dss-methylation:latest2"
+#redndgreen8/methsmootheval:latest
+
 HOST_PORT=8888
 CONTAINER_PORT=8888
 
