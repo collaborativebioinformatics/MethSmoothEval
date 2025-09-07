@@ -39,8 +39,21 @@ RUN apt-get update && apt-get install -y \
 RUN wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc | tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc && \
     add-apt-repository "deb https://cloud.r-project.org/bin/linux/ubuntu $(lsb_release -cs)-cran40/" && \
     apt-get update && \
-    apt-get install -y r-base r-base-dev && \
+    apt-get install -y r-base r-base-dev r-base-core r-recommended && \
     rm -rf /var/lib/apt/lists/*
+
+# Install additional R development libraries needed for rpy2
+RUN apt-get update && apt-get install -y \
+    libreadline-dev \
+    libbz2-dev \
+    liblzma-dev \
+    libpcre2-dev \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    libxml2-dev \
+    libcairo2-dev \
+    libxt-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Python and pip
 RUN apt-get update && apt-get install -y \
@@ -51,6 +64,9 @@ RUN apt-get update && apt-get install -y \
 
 # Create symlinks for python
 RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# Install setuptools and wheel first
+RUN pip3 install --no-cache-dir --upgrade setuptools wheel
 
 # Install JupyterLab and related packages
 RUN pip3 install --no-cache-dir \
@@ -63,20 +79,55 @@ RUN pip3 install --no-cache-dir \
     seaborn \
     scipy \
     scikit-learn \
-    plotly \
-    rpy2
+    plotly
+
+# Install conda 
+RUN wget -qO- https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O miniforge.sh && \
+    bash miniforge.sh -b -p /opt/miniforge
+ENV PATH="/opt/miniforge/bin:$PATH"
+
+# Initialize conda
+RUN conda init bash
+
+# Install bioconda packages for long-read methylation analysis
+RUN conda install -y -c conda-forge -c bioconda \
+    samtools \
+    bcftools \
+    htslib \
+    bedtools \
+    pysam
+
+# Install tools via conda (use latest available versions)
+RUN conda install -y -c bioconda pb-cpg-tools
+
+# Install additional long-read analysis tools
+RUN conda install -y -c bioconda \
+    minimap2 \
+    nanopolish
+
+
+
+# Create symlinks for commonly used tools
+RUN ln -s /opt/miniforge/bin/pb-cpg-tools /usr/local/bin/pb-cpg-tools && \
+    ln -s /opt/miniforge/bin/samtools /usr/local/bin/samtools && \
+    ln -s /opt/miniforge/bin/bedtools /usr/local/bin/bedtools
+
+
+# Note: rpy2 removed due to compatibility issues - R and Python can be used separately
 
 # Install R packages for methylation analysis
 RUN R -e "install.packages(c('BiocManager', 'devtools', 'IRkernel'), repos='https://cloud.r-project.org')"
 
 # Install Bioconductor and DSS
-RUN R -e "BiocManager::install(c('DSS', 'bsseq', 'GenomicRanges', 'IRanges', 'methylKit', 'minfi', 'ChAMP', 'wateRmelon', 'ENmix', 'missMethyl', 'DMRcate', 'bumphunter', 'IlluminaHumanMethylation450kanno.ilmn12.hg19', 'IlluminaHumanMethylationEPICanno.ilm10b4.hg19'))"
+RUN R -e "BiocManager::install(c('DSS', 'bsseq', 'GenomicRanges', 'IRanges', 'methylKit'))"
 
 # Install additional useful R packages
 RUN R -e "install.packages(c('data.table', 'ggplot2', 'dplyr', 'readr', 'tidyverse', 'reshape2', 'corrplot', 'pheatmap', 'RColorBrewer', 'gridExtra'), repos='https://cloud.r-project.org')"
 
 # Install R kernel for Jupyter
 RUN R -e "IRkernel::installspec(user = FALSE)"
+
+RUN conda install -y -c bioconda ont-modkit
 
 # Create working directory
 WORKDIR /workspace
