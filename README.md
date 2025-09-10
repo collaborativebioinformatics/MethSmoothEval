@@ -17,6 +17,9 @@ Nilabja Bhattacharjee,
 ## Introduction
 While the gold standard for DNA methylation detection is bisulfite sequencing, the advent of long-read sequencing has made it possible to detect DNA methylation and additional modifications in native nucleic acid. The goal of this project is to evaluating effects of smoothing on long read methylation calling.
 
+### Key Takeaway
+**Use smoothing with caution**, especially where sing CpG effect have biological relevance like tissue-specific methylation analyses. Some specific "lost" CpG signals are highlighted in the [slides](https://docs.google.com/presentation/d/1xntJzpwD1QStqhe31eTOESBfSB2EzlydXQ2MT2NmyDY/edit?usp=sharing).
+
 Pipeline/flowchart of MethSmoothEval
 ![Flowchart](img/flowchart.svg)
 
