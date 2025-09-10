@@ -1,0 +1,7 @@
+name: pbcpgtools
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - bioconda::pb-cpg-tools
+prefix: /opt/conda/envs/pbcpgtools

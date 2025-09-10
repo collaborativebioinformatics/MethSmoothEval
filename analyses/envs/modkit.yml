@@ -1,0 +1,7 @@
+name: modkit
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - ont-modkit
+prefix: /opt/conda/envs/modkit
