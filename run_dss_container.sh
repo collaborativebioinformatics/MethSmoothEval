@@ -3,14 +3,14 @@
 
 # Configuration
 CONTAINER_NAME="dss-methylation-lab"
-IMAGE_NAME="dss-methylation:latest2"
-#redndgreen8/methsmootheval:latest
+#IMAGE_NAME="dss-methylation:latest"
+IMAGE_NAME="redndgreen8/methsmootheval:latest"
 
 HOST_PORT=8888
 CONTAINER_PORT=8888
 
 # Create local directories for persistent storage
-mkdir -p ./data ./results ./scripts
+mkdir -p ./data ./results ./scripts ./notebooks
 
 echo "Starting DSS Methylation Analysis Container..."
 echo "============================================="
@@ -30,6 +30,7 @@ docker run -d \
     -v $(pwd)/data:/workspace/data \
     -v $(pwd)/results:/workspace/results \
     -v $(pwd)/scripts:/workspace/scripts \
+    -v $(pwd)/notebooks:/workspace/notebooks \
     $IMAGE_NAME
 
 if [ $? -eq 0 ]; then
