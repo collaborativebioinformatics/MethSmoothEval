@@ -79,6 +79,7 @@ run_methSmooth_analysis <- function(sample1_file, sample2_file,
                             p.threshold = p_threshold,
                             delta = delta_threshold)
   
+  overlap_results <- list()
   # Analyze results
   overlap_results$dmls <- list()
   
@@ -204,7 +205,9 @@ run_methSmooth_analysis <- function(sample1_file, sample2_file,
     dmls_unsmoothed = dmls_unsmoothed,
     dmrs_smoothed = dmrs_smoothed,
     dmrs_unsmoothed = dmrs_unsmoothed,
-    overlap_results = overlap_results
+    overlap_results = overlap_results,
+    p_threshold = p_threshold, 
+    delta_threshold = delta_threshold
   ))
 }
 
@@ -235,6 +238,9 @@ create_plots <- function(methyl_results,
   p_threshold <- methyl_results$p_threshold
   delta_threshold <- methyl_results$delta_threshold
   
+
+
+
   # Extract sample names from BSobj
   sample_names <- sampleNames(BSobj)
   sample1_name <- sample_names[1]
@@ -306,6 +312,13 @@ create_plots <- function(methyl_results,
 	         cex = 1.1)
 	}
 
+	# Create wide version (for presentations)
+	png(wide_plot_path, width = 1200, height = 700, res = 120)
+	create_pval_dist_plot()
+	dev.off()
+
+	plots$pval_dist <- create_pval_dist_plot
+
 
 	# ===== 2. DML Methylation Difference Distribution - Overlaid =====
 	if (verbose) cat("Creating overlaid DML methylation difference distribution...\n")
@@ -360,9 +373,9 @@ create_plots <- function(methyl_results,
 	}
 
 	# Create grid version (square-ish)
-	png(grid_plot_path_diff, width = 800, height = 800, res = 120)
-	create_meth_diff_plot()
-	dev.off()
+	#png(grid_plot_path_diff, width = 800, height = 800, res = 120)
+	#create_meth_diff_plot()
+	#dev.off()
 
 	# Create wide version (for presentations)
 	png(wide_plot_path_diff, width = 1200, height = 700, res = 120)
@@ -373,7 +386,7 @@ create_plots <- function(methyl_results,
 	plots$meth_diff <- create_meth_diff_plot
 
 	if (verbose) cat("Methylation difference distribution plots saved to:\n", 
-	                 grid_plot_path_diff, "\n", wide_plot_path_diff, "\n")
+	             wide_plot_path_diff, "\n")
 
 
 
@@ -503,7 +516,7 @@ create_plots <- function(methyl_results,
 	      legend_pch <- c(legend_pch, 17)
 	    }
 	    
-	    legend("topleft", 
+	    legend("bottomright", 
 	           legend = legend_items,
 	           col = legend_colors,
 	           pch = legend_pch,
@@ -528,9 +541,9 @@ create_plots <- function(methyl_results,
 	}
 
 	# Create grid version (square-ish)
-	png(grid_plot_path_volcano, width = 800, height = 800, res = 120)
-	create_volcano_plot()
-	dev.off()
+	#png(grid_plot_path_volcano, width = 800, height = 800, res = 120)
+	#create_volcano_plot()
+	#dev.off()
 
 	# Create wide version (for presentations)
 	png(wide_plot_path_volcano, width = 1200, height = 700, res = 120)
@@ -540,8 +553,7 @@ create_plots <- function(methyl_results,
 	# Save the plot in the list
 	plots$volcano <- create_volcano_plot
 
-	if (verbose) cat("Volcano plot saved to:\n", 
-	                grid_plot_path_volcano, "\n", wide_plot_path_volcano, "\n")
+	if (verbose) cat("Volcano plot saved to:\n",  wide_plot_path_volcano, "\n")
 
 	# ===== 6. DML Count per Chromosome - Bar Chart =====
 	if (verbose) cat("Creating DML count per chromosome bar chart...\n")
@@ -662,9 +674,9 @@ create_plots <- function(methyl_results,
 	}
 
 	# Create grid version (square-ish)
-	png(grid_plot_path_chr, width = 800, height = 800, res = 120)
-	create_chr_count_plot()
-	dev.off()
+	#png(grid_plot_path_chr, width = 800, height = 800, res = 120)
+	#create_chr_count_plot()
+	#dev.off()
 
 	# Create wide version (for presentations)
 	png(wide_plot_path_chr, width = 1200, height = 700, res = 120)
@@ -673,10 +685,10 @@ create_plots <- function(methyl_results,
 
 	# Save the plot in the list
 	plots$chr_count <- create_chr_count_plot
-	plot_paths$chr_count <- list(grid = grid_plot_path_chr, wide = wide_plot_path_chr)
+	#plot_paths$chr_count <- list(grid = grid_plot_path_chr, wide = wide_plot_path_chr)
 
 	if (verbose) cat("DML per chromosome plots saved to:\n", 
-	                grid_plot_path_chr, "\n", wide_plot_path_chr, "\n")
+	                wide_plot_path_chr, "\n")
 	# ===== 4. DMR Length Distribution - Overlaid =====
 	if (verbose) cat("Creating overlaid DMR length distribution...\n")
 
@@ -735,7 +747,7 @@ create_plots <- function(methyl_results,
 	         adj = 0)
 	    
 	    # Add legend
-	    legend("topright", 
+	    legend("bottomright", 
 	           legend = c("Smoothed DMRs", "Unsmoothed DMRs"),
 	           col = c("blue", "red"),
 	           lwd = 8,
@@ -753,9 +765,9 @@ create_plots <- function(methyl_results,
 	}
 
 	# Create grid version (square-ish)
-	png(grid_plot_path_dmr_len, width = 800, height = 800, res = 120)
-	create_dmr_length_plot()
-	dev.off()
+	#png(grid_plot_path_dmr_len, width = 800, height = 800, res = 120)
+	#create_dmr_length_plot()
+	#dev.off()
 
 	# Create wide version (for presentations)
 	png(wide_plot_path_dmr_len, width = 1200, height = 700, res = 120)
@@ -766,7 +778,7 @@ create_plots <- function(methyl_results,
 	plots$dmr_length <- create_dmr_length_plot
 
 	if (verbose) cat("DMR length distribution plots saved to:\n", 
-	                grid_plot_path_dmr_len, "\n", wide_plot_path_dmr_len, "\n")
+	                 wide_plot_path_dmr_len, "\n")
 
 
 	# ===== 5. DMR Methylation Difference Distribution - Overlaid =====
@@ -853,9 +865,9 @@ create_plots <- function(methyl_results,
 	}
 
 	# Create grid version (square-ish)
-	png(grid_plot_path_dmr_diff, width = 800, height = 800, res = 120)
-	create_dmr_diff_plot()
-	dev.off()
+	#png(grid_plot_path_dmr_diff, width = 800, height = 800, res = 120)
+	#create_dmr_diff_plot()
+	#dev.off()
 
 	# Create wide version (for presentations)
 	png(wide_plot_path_dmr_diff, width = 1200, height = 700, res = 120)
@@ -866,13 +878,13 @@ create_plots <- function(methyl_results,
 	plots$dmr_diff <- create_dmr_diff_plot
 
 	if (verbose) cat("DMR methylation difference distribution plots saved to:\n", 
-	                grid_plot_path_dmr_diff, "\n", wide_plot_path_dmr_diff, "\n")
+	                wide_plot_path_dmr_diff, "\n")
 
 	# ===== Create Combined Grid of All Plots =====
 	if (verbose) cat("Creating combined grid of all plots...\n")
 
 	# Load required libraries for grid layout
-	required_packages <- c("grid", "gridExtra", "png")
+	required_packages <- c("gridExtra", "grid")
 	for (pkg in required_packages) {
 	  if (!requireNamespace(pkg, quietly = TRUE)) {
 	    install.packages(pkg)
@@ -883,61 +895,31 @@ create_plots <- function(methyl_results,
 	# Create file path for the grid plot - landscape orientation
 	grid_plot_path_combined <- file.path(output_dir, paste0(sample1_name, "_vs_", sample2_name, "_methylation_analysis_grid.png"))
 
-	# List of plot file paths (grid versions)
-	grid_plots <- list(
-	  grid_plot_path,           # p-value dist
-	  grid_plot_path_diff,      # methylation diff
-	  grid_plot_path_volcano,   # volcano
- 	  grid_plot_path_chr        # NEW: dml per chromosome
-	  grid_plot_path_dmr_len,   # dmr length
-	  grid_plot_path_dmr_diff,  # dmr methylation diff
-	)
-
-	# Read all plot PNGs into a list of raster grobs
-	plot_grobs <- list()
-	for (i in 1:length(grid_plots)) {
-	  if (file.exists(grid_plots[[i]])) {
-	    img <- png::readPNG(grid_plots[[i]])
-	    plot_grobs[[i]] <- grid::rasterGrob(img)
-	  }
-	}
-
-	# Create a 2x3 grid (landscape orientation)
+	# Create a 2x3 grid layout (landscape orientation)
 	png(grid_plot_path_combined, width = 2400, height = 1600, res = 150, bg = "white")
 
-	grid::grid.newpage()
-	grid::pushViewport(grid::viewport(layout = grid::grid.layout(2, 3)))
+	# Set up layout
+	layout(matrix(1:6, nrow = 2, byrow = TRUE))
 
-	# First row
-	for (i in 1:3) {
-	  if (i <= length(plot_grobs)) {
-	    grid::pushViewport(grid::viewport(layout.pos.row = 1, layout.pos.col = i))
-	    grid::grid.draw(plot_grobs[[i]])
-	    grid::popViewport()
-	  }
-	}
-
-	# Second row
-	for (i in 4:6) {
-	  if (i <= length(plot_grobs)) {
-	    grid::pushViewport(grid::viewport(layout.pos.row = 2, layout.pos.col = i-3))
-	    grid::grid.draw(plot_grobs[[i]])
-	    grid::popViewport()
-	  }
-	}
+	# Plot each visualization directly
+	if ("pval_dist" %in% names(plots)) plots$pval_dist()
+	if ("meth_diff" %in% names(plots)) plots$meth_diff()
+	if ("volcano" %in% names(plots)) plots$volcano()
+	if ("chr_count" %in% names(plots)) plots$chr_count()
+	if ("dmr_length" %in% names(plots)) plots$dmr_length()
+	if ("dmr_diff" %in% names(plots)) plots$dmr_diff()
 
 	dev.off()
 
 	if (verbose) cat("Combined plot grid saved to:", grid_plot_path_combined, "\n")
 
 	# Add grid plot path to the returned list
-	plot_paths$grid_combined <- grid_plot_path_combined
+	#plot_paths$grid_combined <- grid_plot_path_combined
 
 
 	  # Return plot functions and file paths
-  return(list(
-    plots = plots,
-    paths = plot_paths
-  ))
+  return(plots)
+
+
 
 }
