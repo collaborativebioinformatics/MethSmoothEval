@@ -103,12 +103,51 @@ run_methSmooth_analysis <- function(sample1_file, sample2_file,
     overlap_results$dmls$pct_of_unsmoothed <- round(length(overlapping_positions) / nrow(dmls_unsmoothed) * 100, 1)
     
     if (verbose) {
-      cat("Overlapping significant DMLs between methods:", overlap_results$dmls$count, "\n")
+      cat("\n Overlapping significant DMLs between methods:", overlap_results$dmls$count, "\n")
       cat("Overlap as % of smoothed DMLs:", overlap_results$dmls$pct_of_smoothed, "%\n")
       cat("Overlap as % of unsmoothed DMLs:", overlap_results$dmls$pct_of_unsmoothed, "%\n")
     }
   }
   
+	
+  # Find DMLs unique to unsmoothed analysis
+  unsmoothed_only_positions <- setdiff(unsmoothed_positions, smoothed_positions)
+  unsmoothed_only_indices <- which(paste(dmls_unsmoothed$chr, dmls_unsmoothed$pos, sep = "_") %in% unsmoothed_only_positions)
+  
+  # Create a dataset of DMLs lost during smoothing
+  if(length(unsmoothed_only_indices) > 0) {
+    dmls_lost_in_smoothing <- dmls_unsmoothed[unsmoothed_only_indices, ]
+    
+    # Save to BED file
+    lost_bed_file <- paste0(sample1_name, "_vs_", sample2_name, "_DMLs_lost_in_smoothing.bed")
+    lost_bed <- data.frame(
+      chr = dmls_lost_in_smoothing$chr,
+      start = dmls_lost_in_smoothing$pos - 1,
+      end = dmls_lost_in_smoothing$pos,
+      name = paste0("LostDML_", 1:nrow(dmls_lost_in_smoothing)),
+      score = -log10(dmls_lost_in_smoothing$pval) * 100,
+      strand = "."
+    )
+    write.table(lost_bed, file = lost_bed_file, 
+                quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+    
+    if(verbose) {
+      cat("\n--- DMLs Lost in Smoothing Analysis ---\n")
+      cat("DMLs significant only in unsmoothed analysis:", length(unsmoothed_only_indices), "\n")
+      cat("Percentage of unsmoothed DMLs lost:", round(length(unsmoothed_only_indices)/nrow(dmls_unsmoothed)*100, 1), "%\n")
+      cat("Lost DMLs saved to:", lost_bed_file, "\n")
+    }
+    
+    # Add to overlap results
+    overlap_results$dmls$lost_in_smoothing <- dmls_lost_in_smoothing
+    overlap_results$dmls$lost_count <- length(unsmoothed_only_indices)
+    overlap_results$dmls$lost_percentage <- round(length(unsmoothed_only_indices)/nrow(dmls_unsmoothed)*100, 1)
+  }
+
+
+
+
+
   # Print top results if available
   if (verbose) {
     if (nrow(dmls_smoothed) > 0) {
@@ -135,6 +174,131 @@ run_methSmooth_analysis <- function(sample1_file, sample2_file,
   if(verbose) cat("Unsmoothed DMLs saved to:", unsmoothed_csv_file, "\n")
   }
 
+
+# Find CpG sites where signal is reduced to near-zero after smoothing
+	if (verbose) cat("\n...Identifying CpG sites lost during smoothing...\n")
+
+
+	# Create site identifiers
+	smoothed_sites <- paste(dmlTest_smoothed$chr, dmlTest_smoothed$pos, sep="_")
+	unsmoothed_sites <- paste(dmlTest_unsmoothed$chr, dmlTest_unsmoothed$pos, sep="_")
+
+	# Find common sites
+	common_sites <- intersect(smoothed_sites, unsmoothed_sites)
+
+	# Get indices for each dataset
+	smoothed_idx <- match(common_sites, smoothed_sites)
+	unsmoothed_idx <- match(common_sites, unsmoothed_sites)
+
+	if (verbose) {
+	  cat("Common sites between smoothed and unsmoothed:", length(common_sites), "\n")
+	  cat("Percentage of smoothed sites:", round(length(common_sites)/length(smoothed_sites)*100, 1), "%\n")
+	  cat("Percentage of unsmoothed sites:", round(length(common_sites)/length(unsmoothed_sites)*100, 1), "%\n")
+    cat("Length of smoothed indices:", length(smoothed_idx), "\n")
+    cat("Length of unsmoothed indices:", length(unsmoothed_idx), "\n")
+	}
+
+	# Create a data frame with both smoothed and unsmoothed differences
+	meth_comparison <- data.frame(
+  	chr = dmlTest_smoothed$chr[smoothed_idx],
+  	pos = dmlTest_smoothed$pos[smoothed_idx],
+	  diff_unsmoothed = dmlTest_unsmoothed$diff[unsmoothed_idx],
+	  diff_smoothed = dmlTest_smoothed$diff[smoothed_idx]
+	)
+
+	# Create a comparison data frame
+	sample1_idx <- which(sampleNames(BSobj) == sample1_name)
+	sample2_idx <- which(sampleNames(BSobj) == sample2_name)
+
+
+
+	# Calculate absolute change in difference after smoothing
+	meth_comparison$abs_change <- abs(meth_comparison$diff_unsmoothed - meth_comparison$diff_smoothed)
+	meth_comparison$diff_ratio <- abs(meth_comparison$diff_unsmoothed) / 
+	                             (abs(meth_comparison$diff_smoothed) + 0.001) # Avoid division by zero
+
+
+	# Find sites where signal was drastically reduced (e.g., >80% reduction)
+	signal_loss_sites <- subset(meth_comparison, 
+	                          abs(diff_unsmoothed) > 0.2 & # Significant difference before smoothing
+	                          abs(diff_smoothed) < 0.05 &  # Minimal difference after smoothing
+	                          diff_ratio > 5)              # At least 5x reduction
+
+	# Export to BED file
+	signal_loss_bed_file <- paste0(sample1_name, "_vs_", sample2_name, "_signal_loss_sites.bed")
+	write.table(data.frame(
+	  chr = signal_loss_sites$chr,
+	  start = signal_loss_sites$pos - 1,
+	  end = signal_loss_sites$pos,
+	  name = paste0("LostSignal_", 1:nrow(signal_loss_sites)),
+	  score = signal_loss_sites$abs_change * 1000,
+	  strand = "."
+	), file = signal_loss_bed_file, quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+
+	if (verbose) {
+	  cat("\nFound", nrow(signal_loss_sites), "CpG sites with significant signal loss after smoothing\n")
+	  cat("Signal loss sites saved to:", signal_loss_bed_file, "\n")
+	}
+
+	# Find CpG sites that go to zero (or near-zero) after smoothing
+	zero_after_smoothing <- subset(meth_comparison, 
+	                             abs(diff_unsmoothed) >= 0.2 &       # Substantial difference before smoothing
+	                             abs(diff_smoothed) <= 0.01)         # Effectively zero after smoothing
+
+	# Count sites with very small counts that go to zero
+	coverage_mat <- getCoverage(BSobj)
+	sample1_cov <- coverage_mat[, sample1_idx]
+	sample2_cov <- coverage_mat[, sample2_idx]
+
+	meth_unsmoothed <- getMeth(BSobj, type="raw")
+
+	# Get methylation counts (not proportions)
+	methyl_counts1 <- round(meth_unsmoothed[, sample1_idx] * sample1_cov)
+	methyl_counts2 <- round(meth_unsmoothed[, sample2_idx] * sample2_cov)
+
+	# Match row names to ensure correct indexing
+	rownames(meth_comparison) <- paste(meth_comparison$chr, meth_comparison$pos, sep="_")
+	names(methyl_counts1) <- names(methyl_counts2) <- paste(dmlTest_smoothed$chr, dmlTest_smoothed$pos, sep="_")
+
+	zero_sites_idx <- rownames(zero_after_smoothing)
+
+	# Find low-count sites (1-5 methylated reads) that go to zero
+	low_count_to_zero <- zero_after_smoothing[
+	  (methyl_counts1[zero_sites_idx] >= 1 & methyl_counts1[zero_sites_idx] <= 5) |
+	  (methyl_counts2[zero_sites_idx] >= 1 & methyl_counts2[zero_sites_idx] <= 5), ]
+
+	# Export to BED file
+	zero_sites_bed_file <- paste0(sample1_name, "_vs_", sample2_name, "_sites_smoothed_to_zero.bed")
+	write.table(data.frame(
+	  chr = zero_after_smoothing$chr,
+	  start = zero_after_smoothing$pos - 1,
+	  end = zero_after_smoothing$pos,
+	  name = paste0("ZeroSmooth_", 1:nrow(zero_after_smoothing)),
+	  score = abs(zero_after_smoothing$diff_unsmoothed) * 1000,
+	  strand = "."
+	), file = zero_sites_bed_file, quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+
+	# Export low count sites separately
+	low_count_bed_file <- paste0(sample1_name, "_vs_", sample2_name, "_low_count_to_zero.bed")
+	if(nrow(low_count_to_zero) > 0) {
+	  write.table(data.frame(
+	    chr = low_count_to_zero$chr,
+	    start = low_count_to_zero$pos - 1,
+	    end = low_count_to_zero$pos,
+	    name = paste0("LowCount_", 1:nrow(low_count_to_zero)),
+	    score = abs(low_count_to_zero$diff_unsmoothed) * 1000,
+	    strand = "."
+	  ), file = low_count_bed_file, quote = FALSE, sep = "\t", row.names = FALSE, col.names = FALSE)
+	}
+
+	if (verbose) {
+	  cat("\nFound", nrow(zero_after_smoothing), "sites smoothed to effectively zero\n")
+	  cat("Of these,", nrow(low_count_to_zero), "had only 1-5 methylated reads\n")
+	  cat("Sites smoothed to zero saved to:", zero_sites_bed_file, "\n")
+	  if(nrow(low_count_to_zero) > 0) {
+	    cat("Low count sites saved to:", low_count_bed_file, "\n")
+	  }
+	}
 
   # Call DMRs for both methods
   if (verbose) cat("\nCalling DMRs...\n")
@@ -214,6 +378,15 @@ run_methSmooth_analysis <- function(sample1_file, sample2_file,
 
 
 
+
+
+
+
+
+
+
+
+
 create_plots <- function(methyl_results, 
                          output_dir = "./plots",
                          verbose = TRUE) {
@@ -238,7 +411,13 @@ create_plots <- function(methyl_results,
   p_threshold <- methyl_results$p_threshold
   delta_threshold <- methyl_results$delta_threshold
   
-
+	if("overlap_results" %in% names(methyl_results) && 
+	   !is.null(methyl_results$overlap_results$dmls$lost_in_smoothing)) {
+	  overlap_results <- methyl_results$overlap_results
+	} else {
+	  # Create a default if not found
+	  if(verbose) cat("Warning: Lost DMLs data not found in results\n")
+	}
 
 
   # Extract sample names from BSobj
@@ -880,6 +1059,70 @@ create_plots <- function(methyl_results,
 	if (verbose) cat("DMR methylation difference distribution plots saved to:\n", 
 	                wide_plot_path_dmr_diff, "\n")
 
+	if (verbose) cat("Creating visualization of DMLs lost in smoothing...\n")
+
+	# Create file path
+	wide_plot_path_lost <- file.path(output_dir, paste0(sample1_name, "_vs_", sample2_name, "_DMLs_lost_in_smoothing_wide.png"))
+
+	# Function to create the lost DMLs plot
+	create_lost_dmls_plot <- function() {
+	  # White background
+	  par(bg = "white", mar = c(5, 5, 4, 2))
+	  
+	  # Check if there's data to visualize
+	  if(exists("overlap_results") && 
+	     !is.null(overlap_results$dmls$lost_in_smoothing) && 
+	     nrow(overlap_results$dmls$lost_in_smoothing) > 0) {
+	    
+	    # Scatter plot of methylation difference vs significance
+	    plot(-log10(overlap_results$dmls$lost_in_smoothing$pval),
+	         overlap_results$dmls$lost_in_smoothing$diff,
+	         pch = 16,
+	         col = alpha("purple", 0.7),
+	         main = paste0("DMLs Lost in Smoothing\n", sample1_name, " vs ", sample2_name),
+	         xlab = "-log10(P-value)",
+	         ylab = paste0("Methylation Difference (", sample1_name, " - ", sample2_name, ")"),
+	         cex.main = 1.3,
+	         cex.lab = 1.2)
+	    
+	    # Add threshold lines
+	    if(exists("p_threshold")) {
+	      abline(v = -log10(p_threshold), col = "darkgreen", lty = 2, lwd = 2)
+	    }
+	    if(exists("delta_threshold")) {
+	      abline(h = c(-delta_threshold, delta_threshold), col = "darkgreen", lty = 2, lwd = 2)
+	    }
+	    abline(h = 0, col = "black", lty = 1, lwd = 1)
+	    
+	    # Add info text
+	    text(x = par("usr")[2] * 0.8, y = par("usr")[4] * 0.8,
+	         labels = paste0("Total: ", nrow(overlap_results$dmls$lost_in_smoothing), " DMLs",
+	                       "\nHyper: ", sum(overlap_results$dmls$lost_in_smoothing$diff > 0),
+	                       "\nHypo: ", sum(overlap_results$dmls$lost_in_smoothing$diff < 0),
+	                       "\n", overlap_results$dmls$lost_percentage, "% of unsmoothed DMLs"),
+	         cex = 1.1,
+	         adj = 0)
+	  } else {
+	    # Create an empty plot with a message if no lost DMLs
+	    plot(0, 0, type = "n", 
+	         xlim = c(0, 1), ylim = c(0, 1),
+	         xlab = "", ylab = "",
+	         main = paste0("No DMLs Lost in Smoothing\n", sample1_name, " vs ", sample2_name))
+	    text(0.5, 0.5, "All significant DMLs were preserved during smoothing", cex = 1.5)
+	  }
+	}
+
+	# Create wide version for presentations
+	png(wide_plot_path_lost, width = 1200, height = 700, res = 120)
+	create_lost_dmls_plot()
+	dev.off()
+
+	# Save the plot in the list
+	plots$lost_dmls <- create_lost_dmls_plot
+	
+	if (verbose) cat("DMLs lost in smoothing plot saved to:", wide_plot_path_lost, "\n")
+
+
 	# ===== Create Combined Grid of All Plots =====
 	if (verbose) cat("Creating combined grid of all plots...\n")
 
@@ -902,10 +1145,11 @@ create_plots <- function(methyl_results,
 	layout(matrix(1:6, nrow = 2, byrow = TRUE))
 
 	# Plot each visualization directly
+	if ("lost_dmls" %in% names(plots)) plots$lost_dmls()
 	if ("pval_dist" %in% names(plots)) plots$pval_dist()
 	if ("meth_diff" %in% names(plots)) plots$meth_diff()
 	if ("volcano" %in% names(plots)) plots$volcano()
-	if ("chr_count" %in% names(plots)) plots$chr_count()
+	#if ("chr_count" %in% names(plots)) plots$chr_count()
 	if ("dmr_length" %in% names(plots)) plots$dmr_length()
 	if ("dmr_diff" %in% names(plots)) plots$dmr_diff()
 
@@ -923,3 +1167,8 @@ create_plots <- function(methyl_results,
 
 
 }
+
+
+
+
+
