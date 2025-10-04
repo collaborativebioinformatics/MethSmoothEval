@@ -116,7 +116,7 @@ seqinfo_genome <- seqinfo(BSgenome.Hsapiens.UCSC.hg38)
 
 create_bigwig <- function(methyl_results, 
                           output_dir = "./bigwig",
-                          verbose = TRUE) {
+                          verbose = FALSE) {
   # Create BigWig files from methylation analysis results
   #
   # Args:

@@ -1,0 +1,12 @@
+{
+  "input_json": "/workspace/scripts/samples.json",
+  "results_dir": "results",
+  "threads": 2,
+  "memory_mb": 8000,
+  "r_memory_mb": 12000,
+  "min_coverage": 5,
+  "p_threshold": 0.05,
+  "delta_threshols": 0.1,
+  "pileup": "count",
+  "container": "docker://redndgreen8/methsmootheval:latest"
+}

@@ -5,7 +5,7 @@ run_methSmooth_analysis <- function(sample1_file, sample2_file,
                                      sample1_name, sample2_name,
                                      p_threshold = 0.05, 
                                      delta_threshold = 0.1,
-                                     verbose = TRUE) {
+                                     verbose = FALSE) {
   # Function to perform both smoothed and unsmoothed methylation analysis
   # 
   # Args:
@@ -389,7 +389,7 @@ run_methSmooth_analysis <- function(sample1_file, sample2_file,
 
 create_plots <- function(methyl_results, 
                          output_dir = "./plots",
-                         verbose = TRUE) {
+                         verbose = FALSE) {
   # Create plots from methylation analysis results
   #
   # Args:

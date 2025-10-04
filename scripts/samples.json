@@ -1,0 +1,12 @@
+{
+  "bam_files": {
+    "HG002.chr22": "/workspace/data/bams/HG002.chr22.haplotagged.bam",
+    "HG003.chr22": "/workspace/data/bams/HG003.chr22.bam",
+    "HG004.chr22": "/workspace/data/bams/HG004.chr22.bam"
+  },
+  "bed_file": "/workspace/data/annotations/repeats.bed.gz",
+  "r_script": "/workspace/scripts/analysis.R",
+  "analysis_util": "/workspace/scripts/analysis_Util.R",
+  "bigWigs": "/workspace/scripts/createBigWigs.R",
+  "dss_convert_script": "/workspace/scripts/convert_to_dss.smk.R"
+}
