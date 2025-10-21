@@ -61,7 +61,7 @@ rule all:
         #DSS format
         expand(os.path.join(DSS_DIR, "{sample}.dss.bed"), sample=SAMPLE_NAMES),
         # R analysis results for all pairs
-        expand(os.path.join(ANALYSIS_DIR, "{sample1}_vs_{sample2}_pb_methylation_analysis_grid.png"), zip, 
+        expand(os.path.join(ANALYSIS_DIR, "{sample1}_vs_{sample2}_methylation_analysis_grid.png"), zip, 
                sample1=[pair[0] for pair in SAMPLE_PAIRS],
                sample2=[pair[1] for pair in SAMPLE_PAIRS])
 
@@ -152,7 +152,7 @@ rule analyze_cpg_pair:
         dss2 = os.path.join(DSS_DIR, "{sample2}.dss.bed"),
         script = R_SCRIPT
     output:
-        result = os.path.join(ANALYSIS_DIR, "{sample1}_vs_{sample2}_pb_methylation_analysis_grid.png")
+        result = os.path.join(ANALYSIS_DIR, "{sample1}_vs_{sample2}_methylation_analysis_grid.png")
     log:
         os.path.join("logs", "analysis", "{sample1}_{sample2}.log")
     resources:
