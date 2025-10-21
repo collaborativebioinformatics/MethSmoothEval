@@ -33,6 +33,7 @@ RUN apt-get update && apt-get install -y \
     libblas-dev \
     liblapack-dev \
     gfortran \
+    coinor-cbc \
     && rm -rf /var/lib/apt/lists/*
 
 # Install R
@@ -95,7 +96,8 @@ RUN conda install -y -c conda-forge -c bioconda \
     bcftools \
     htslib \
     bedtools \
-    pysam
+    pysam \
+    snakemake
 
 # Install tools via conda (use latest available versions)
 RUN conda install -y -c bioconda pb-cpg-tools
@@ -116,13 +118,13 @@ RUN ln -s /opt/miniforge/bin/pb-cpg-tools /usr/local/bin/pb-cpg-tools && \
 # Note: rpy2 removed due to compatibility issues - R and Python can be used separately
 
 # Install R packages for methylation analysis
-RUN R -e "install.packages(c('BiocManager', 'devtools', 'IRkernel'), repos='https://cloud.r-project.org')"
+RUN R -e "install.packages(c('BiocManager', 'devtools', 'IRkernel', 'optparse', 'viridis'), repos='https://cloud.r-project.org')"
 
 # Install Bioconductor and DSS
-RUN R -e "BiocManager::install(c('DSS', 'bsseq', 'GenomicRanges', 'IRanges', 'methylKit'))"
+RUN R -e "BiocManager::install(c('DSS', 'bsseq', 'GenomicRanges', 'IRanges', 'methylKit', 'BSgenome.Hsapiens.UCSC.hg38'), force=TRUE)"
 
 # Install additional useful R packages
-RUN R -e "install.packages(c('data.table', 'ggplot2', 'dplyr', 'readr', 'tidyverse', 'reshape2', 'corrplot', 'pheatmap', 'RColorBrewer', 'gridExtra'), repos='https://cloud.r-project.org')"
+RUN R -e "install.packages(c('data.table', 'ggplot2', 'dplyr', 'readr', 'tidyverse', 'reshape2', 'corrplot', 'pheatmap', 'RColorBrewer', 'gridExtra', 'cowplot'), repos='https://cloud.r-project.org')"
 
 # Install R kernel for Jupyter
 RUN R -e "IRkernel::installspec(user = FALSE)"
