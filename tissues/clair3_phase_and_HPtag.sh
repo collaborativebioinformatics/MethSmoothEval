@@ -50,6 +50,14 @@ singularity run \
 # Alignments spanning multiple phase sets:            4
 samtools index -@ ${THREADS} ${OUTDIR1}/hg002_blood.phased.bam
 
+# split the bam
+samtools view -@ ${THREADS} \
+    -bh -d HP:1 ${OUTDIR1}/hg002_blood.phased.bam -o ${OUTDIR1}/hg002_blood.HP1.bam
+samtools index -@ ${THREADS} ${OUTDIR1}/hg002_blood.HP1.bam
+samtools view -@ ${THREADS} \
+    -bh -d HP:2 ${OUTDIR1}/hg002_blood.phased.bam -o ${OUTDIR1}/hg002_blood.HP2.bam
+samtools index -@ ${THREADS} ${OUTDIR1}/hg002_blood.HP2.bam
+
 ## colo829bl
 BAM2="colo829bl.merged.bam"
 INDIR2="/scratch/eger/projects/MethSmoothEval/tissues/data_transfer/colo829bl"
@@ -97,4 +105,12 @@ singularity run \
 # Alignments that could be tagged:             11969319
 # Alignments spanning multiple phase sets:           11
 samtools index -@ ${THREADS} ${OUTDIR2}/colo829bl.phased.bam
+
+# split the bam
+samtools view -@ ${THREADS} \
+    -bh -d HP:1 ${OUTDIR2}/colo829bl.phased.bam -o ${OUTDIR2}/colo829bl.HP1.bam
+samtools index -@ ${THREADS} ${OUTDIR2}/colo829bl.HP1.bam
+samtools view -@ ${THREADS} \
+    -bh -d HP:2 ${OUTDIR2}/colo829bl.phased.bam -o ${OUTDIR2}/colo829bl.HP2.bam
+samtools index -@ ${THREADS} ${OUTDIR2}/colo829bl.HP2.bam
     
