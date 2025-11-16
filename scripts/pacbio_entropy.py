@@ -80,18 +80,26 @@ class MMMLParser:
                     base_positions.append(i)
             
             # Convert delta encoding to absolute positions
-            current_idx = 0
+            # The deltas are relative to the PREVIOUS modified position, not absolute index
+            current_base_idx = 0  # Index into base_positions array
+            
             for skip_count in positions:
-                current_idx += skip_count
-                if current_idx < len(base_positions):
-                    seq_pos = base_positions[current_idx]
+                # Skip this many bases of the specified type
+                current_base_idx += skip_count
+                
+                if current_base_idx < len(base_positions):
+                    seq_pos = base_positions[current_base_idx]
                     # Store modification info
                     # For multi-mods, we'll track that multiple types are possible
                     for mod_code in mod_list:
                         modifications[base].append((seq_pos, mod_code, strand))
-                    current_idx += 1
+                    # Move to next position for the next delta
+                    current_base_idx += 1
                 else:
-                    logger.warning(f"Position index {current_idx} exceeds base positions for {base}")
+                    # This can happen if MM tag is out of sync with sequence
+                    # Log only at debug level to avoid spam
+                    logger.debug(f"Position index {current_base_idx} exceeds {len(base_positions)} "
+                               f"base positions for {base} in sequence of length {len(seq)}")
                     break
         
         return modifications
@@ -222,6 +230,15 @@ class PacBioEntropyCalculator:
             is_reverse = read.is_reverse
             
             try:
+                # Validate MN tag if present (sequence length check)
+                if read.has_tag('MN'):
+                    expected_len = read.get_tag('MN')
+                    if expected_len != len(read.query_sequence):
+                        logger.debug(f"Read {read_id}: MN tag ({expected_len}) doesn't match "
+                                   f"current SEQ length ({len(read.query_sequence)}). "
+                                   f"MM/ML tags may be stale. Skipping read.")
+                        continue
+                
                 # Parse MM tag
                 mm_string = read.get_tag('MM')
                 mm_mods = self.parser.parse_mm_tag(mm_string, read.query_sequence, is_reverse)
@@ -468,6 +485,7 @@ class PacBioEntropyCalculator:
         
         with pysam.AlignmentFile(bam_path, 'rb') as bamfile:
             all_results = []
+            windows_processed = 0
             
             if regions:
                 # Process specified regions
@@ -475,21 +493,28 @@ class PacBioEntropyCalculator:
                     logger.info(f"Processing region {chrom}:{start}-{end}")
                     results = self.process_region(bamfile, chrom, start, end)
                     all_results.extend(results)
+                    windows_processed += 1
             else:
                 # Process entire genome in windows
                 for ref_info in bamfile.header.as_dict()['SQ']:
                     chrom = ref_info['SN']
                     length = ref_info['LN']
                     
-                    logger.info(f"Processing chromosome {chrom} (length: {length})")
+                    logger.info(f"Processing chromosome {chrom} (length: {length:,} bp)")
                     
+                    chrom_windows = 0
                     for start in range(0, length, self.window_size):
                         end = min(start + self.window_size * 2, length)  # Overlap windows
                         results = self.process_region(bamfile, chrom, start, end)
                         all_results.extend(results)
+                        chrom_windows += 1
+                        windows_processed += 1
                         
-                        if len(all_results) > 0 and len(all_results) % 100 == 0:
-                            logger.info(f"Processed {len(all_results)} windows")
+                        if chrom_windows % 50 == 0:
+                            logger.info(f"  Processed {chrom_windows} windows on {chrom}, "
+                                      f"{len(all_results)} total entropy windows calculated")
+                    
+                    logger.info(f"Completed {chrom}: {chrom_windows} windows processed")
         
         # Write results
         if output_format == 'bedgraph':
@@ -497,8 +522,16 @@ class PacBioEntropyCalculator:
         else:
             self._write_bed_output(all_results, output_path)
             
-        logger.info(f"Analysis complete. {len(all_results)} windows analyzed.")
+        logger.info(f"="*60)
+        logger.info(f"Analysis complete!")
+        logger.info(f"Windows processed: {windows_processed}")
+        logger.info(f"Entropy calculations: {len(all_results)}")
+        if len(all_results) > 0:
+            entropies = [e for _, _, _, e, _ in all_results]
+            logger.info(f"Entropy range: {min(entropies):.3f} - {max(entropies):.3f}")
+            logger.info(f"Mean entropy: {np.mean(entropies):.3f}")
         logger.info(f"Results written to {output_path}")
+        logger.info(f"="*60)
     
     def _write_bed_output(self, results: List[Tuple[str, int, int, float, int]], 
                          output_path: str):
