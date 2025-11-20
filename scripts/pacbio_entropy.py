@@ -151,7 +151,8 @@ class PacBioEntropyCalculator:
     
     def __init__(self, reference_fasta: str, motif: str = 'CG', 
                  min_coverage: int = 10, filter_threshold: float = 0.66,
-                 window_size: int = 2000, num_positions: int = 4,
+                 window_size: int = 50, num_positions: int = 4,
+                 max_filtered_frac: float = 0.5, combine_strands: bool = False,
                  mod_codes: Optional[List[str]] = None):
         """
         Initialize the entropy calculator.
@@ -159,10 +160,17 @@ class PacBioEntropyCalculator:
         Args:
             reference_fasta: Path to reference genome FASTA file
             motif: DNA motif to analyze (default: CG for CpG sites)
-            min_coverage: Minimum coverage threshold for analysis
+            min_coverage: Minimum coverage threshold for analysis (default: 10)
+                         Note: modkit uses 3, but 10-30 recommended for reliable estimates
             filter_threshold: Minimum probability threshold for confident calls (default: 0.66)
-            window_size: Size of genomic windows for entropy calculation
-            num_positions: Number of modification sites per entropy calculation
+                            Calls above this are 'm', below (1-threshold) are 'u', between are '*'
+            window_size: Maximum bp distance for num_positions motifs (default: 50)
+                        This ensures analyzed sites are in the same regulatory context
+            num_positions: Number of modification sites per entropy calculation (default: 4)
+            max_filtered_frac: Maximum fraction of filtered positions allowed per read (default: 0.5)
+                              Reads with more wildcards than this are discarded
+            combine_strands: Combine modification counts from both strands (default: False)
+                           When True with CG motif, behaves like modkit's --cpg flag
             mod_codes: Modification codes to analyze (default: ['m'] for 5mC)
         """
         self.reference = pysam.FastaFile(reference_fasta)
@@ -171,12 +179,17 @@ class PacBioEntropyCalculator:
         self.filter_threshold = filter_threshold
         self.window_size = window_size
         self.num_positions = num_positions
+        self.max_filtered_frac = max_filtered_frac
+        self.combine_strands = combine_strands
         self.mod_codes = mod_codes or ['m']  # Default to 5mC
         self.parser = MMMLParser()
         
     def find_motif_positions(self, chromosome: str, start: int, end: int) -> List[int]:
         """
         Find all motif positions in the specified genomic region.
+        
+        When combine_strands is True and motif is palindromic (e.g., CG),
+        returns positions from both strands mapped to the positive strand.
         
         Args:
             chromosome: Chromosome name
@@ -190,12 +203,27 @@ class PacBioEntropyCalculator:
             sequence = self.reference.fetch(chromosome, start, end).upper()
             positions = []
             
-            # Find all occurrences of the motif
+            # Find all occurrences of the motif on forward strand
             for i in range(len(sequence) - len(self.motif) + 1):
                 if sequence[i:i+len(self.motif)] == self.motif:
                     positions.append(start + i)
-                    
-            return positions
+            
+            # If combining strands and motif is self-complementary (like CG)
+            if self.combine_strands:
+                # Get reverse complement of motif
+                complement = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
+                rev_motif = ''.join(complement.get(b, b) for b in reversed(self.motif))
+                
+                # For CG motif, reverse complement is also CG (palindrome)
+                # For other motifs, find reverse complement occurrences
+                if rev_motif != self.motif:
+                    for i in range(len(sequence) - len(rev_motif) + 1):
+                        if sequence[i:i+len(rev_motif)] == rev_motif:
+                            # Map to positive strand position
+                            positions.append(start + i)
+            
+            return sorted(set(positions))  # Remove duplicates and sort
+            
         except Exception as e:
             logger.warning(f"Could not fetch sequence for {chromosome}:{start}-{end}: {e}")
             return []
@@ -267,6 +295,11 @@ class PacBioEntropyCalculator:
                         if mod_code not in self.mod_codes:
                             continue
                         
+                        # If combining strands, accept both + and - strand calls
+                        # Otherwise, only accept calls from the appropriate strand
+                        if not self.combine_strands and strand == '-':
+                            continue
+                        
                         # Convert query position to reference position
                         if query_pos in query_to_ref:
                             ref_pos = query_to_ref[query_pos]
@@ -313,21 +346,32 @@ class PacBioEntropyCalculator:
         # Use first num_positions motifs in the window
         positions = sorted(motif_positions)[:self.num_positions]
         
+        # Calculate max_filtered threshold
+        max_filtered_positions = int(self.max_filtered_frac * self.num_positions)
+        
         # Collect methylation patterns across reads
         patterns = []
         
         for read_id, read_mods in read_data.items():
             pattern = []
             valid_positions = 0
+            filtered_positions = 0
             
             for pos in positions:
                 if pos in read_mods:
                     call, prob = read_mods[pos]
                     pattern.append(call)
-                    if call != '*':
+                    if call == '*':
+                        filtered_positions += 1
+                    else:
                         valid_positions += 1
                 else:
                     pattern.append('*')  # No coverage
+                    filtered_positions += 1
+            
+            # Apply max_filtered_positions filter (like modkit)
+            if filtered_positions > max_filtered_positions:
+                continue  # Discard read with too many uncertain calls
             
             # Only include patterns with sufficient valid positions
             min_valid = max(1, int(len(positions) * 0.5))
@@ -429,6 +473,9 @@ class PacBioEntropyCalculator:
         """
         Process a genomic region and calculate entropy values.
         
+        Uses a sliding window approach to find sets of num_positions motifs
+        within window_size base pairs of each other.
+        
         Args:
             bamfile: Opened BAM file handle
             chromosome: Chromosome name
@@ -452,18 +499,31 @@ class PacBioEntropyCalculator:
         # Extract modification data for the region
         read_data = self.extract_modification_data(bamfile, chromosome, start, end, motif_set)
         
-        # Calculate entropy for sliding windows
-        step_size = max(1, self.num_positions // 2)  # 50% overlap
-        for i in range(0, len(motif_positions) - self.num_positions + 1, step_size):
+        # Calculate entropy for windows where num_positions motifs fit within window_size bp
+        i = 0
+        while i <= len(motif_positions) - self.num_positions:
+            # Get potential window of num_positions consecutive motifs
             window_positions = motif_positions[i:i + self.num_positions]
-            window_start = window_positions[0]
-            window_end = window_positions[-1] + len(self.motif)
             
-            result = self.calculate_entropy_window(read_data, window_positions)
+            # Check if all positions fit within window_size
+            window_span = window_positions[-1] - window_positions[0]
             
-            if result is not None:
-                entropy, coverage = result
-                results.append((chromosome, window_start, window_end, entropy, coverage))
+            if window_span <= self.window_size:
+                # Valid window - calculate entropy
+                window_start = window_positions[0]
+                window_end = window_positions[-1] + len(self.motif)
+                
+                result = self.calculate_entropy_window(read_data, window_positions)
+                
+                if result is not None:
+                    entropy, coverage = result
+                    results.append((chromosome, window_start, window_end, entropy, coverage))
+                
+                # Move to next position (creates overlapping windows)
+                i += 1
+            else:
+                # Window too large - skip first position and try next
+                i += 1
         
         return results
     
@@ -524,12 +584,19 @@ class PacBioEntropyCalculator:
             
         logger.info(f"="*60)
         logger.info(f"Analysis complete!")
-        logger.info(f"Windows processed: {windows_processed}")
-        logger.info(f"Entropy calculations: {len(all_results)}")
+        logger.info(f"Entropy windows calculated: {len(all_results)}")
         if len(all_results) > 0:
             entropies = [e for _, _, _, e, _ in all_results]
+            coverages = [c for _, _, _, _, c in all_results]
             logger.info(f"Entropy range: {min(entropies):.3f} - {max(entropies):.3f}")
-            logger.info(f"Mean entropy: {np.mean(entropies):.3f}")
+            logger.info(f"Mean entropy: {np.mean(entropies):.3f} (median: {np.median(entropies):.3f})")
+            logger.info(f"Coverage range: {min(coverages)} - {max(coverages)} reads")
+            logger.info(f"Mean coverage: {np.mean(coverages):.1f} reads")
+        else:
+            logger.warning(f"No entropy windows calculated! Check:")
+            logger.warning(f"  - Do you have {self.num_positions} {self.motif} motifs within {self.window_size} bp?")
+            logger.warning(f"  - Is coverage >= {self.min_coverage}?")
+            logger.warning(f"  - Are MM/ML tags present in the BAM?")
         logger.info(f"Results written to {output_path}")
         logger.info(f"="*60)
     
@@ -546,6 +613,10 @@ class PacBioEntropyCalculator:
             # Write header
             f.write(f"# PacBio Methylation Entropy Analysis\n")
             f.write(f"# Motif: {self.motif}, Modification codes: {','.join(self.mod_codes)}\n")
+            f.write(f"# Parameters: num_positions={self.num_positions}, window_size={self.window_size}, "
+                   f"min_coverage={self.min_coverage}, filter_threshold={self.filter_threshold:.2f}\n")
+            f.write(f"# Max filtered fraction: {self.max_filtered_frac:.1%}, "
+                   f"combine_strands={self.combine_strands}\n")
             f.write(f"# Columns: chromosome, start, end, entropy, coverage\n")
             
             # Write data
@@ -614,14 +685,23 @@ Examples:
     parser.add_argument('--mod-codes', nargs='+', default=['m'],
                        help='Modification codes to analyze (default: m for 5mC). '
                             'Options: m (5mC), h (5hmC), f (5fC), c (5caC), a (6mA), etc.')
-    parser.add_argument('--min-coverage', type=int, default=10,
-                       help='Minimum coverage threshold (default: 10)')
+    parser.add_argument('--min-coverage', type=int, default=5,
+                       help='Minimum coverage threshold (default: 5). '
+                            'Modkit uses 3, but 10-30 recommended for reliable estimates')
     parser.add_argument('--filter-threshold', type=float, default=0.66,
-                       help='Minimum probability threshold for confident calls (default: 0.66)')
-    parser.add_argument('--window-size', type=int, default=2000,
-                       help='Window size for analysis (default: 2000)')
+                       help='Minimum probability threshold for confident calls (default: 0.66). '
+                            'Modkit uses ~0.1, but 0.66 recommended for PacBio kinetic data')
+    parser.add_argument('--window-size', type=int, default=50,
+                       help='Maximum bp distance for num_positions motifs (default: 50, matches modkit). '
+                            'This ensures analyzed sites are in the same regulatory context')
     parser.add_argument('--num-positions', type=int, default=4,
-                       help='Number of motif positions per entropy calculation (default: 4)')
+                       help='Number of motif positions per entropy calculation (default: 4, matches modkit)')
+    parser.add_argument('--max-filtered-frac', type=float, default=0.5,
+                       help='Maximum fraction of uncertain calls allowed per read (default: 0.5, matches modkit). '
+                            'Reads with more wildcards are discarded')
+    parser.add_argument('--combine-strands', action='store_true',
+                       help='Combine modification counts from both strands (like modkit --cpg). '
+                            'Use with --motif CG for standard CpG analysis')
     parser.add_argument('--regions', nargs='*',
                        help='Specific regions to analyze (format: chr:start-end)')
     parser.add_argument('--format', choices=['bed', 'bedgraph'], default='bed',
@@ -655,6 +735,8 @@ Examples:
         filter_threshold=args.filter_threshold,
         window_size=args.window_size,
         num_positions=args.num_positions,
+        max_filtered_frac=args.max_filtered_frac,
+        combine_strands=args.combine_strands,
         mod_codes=args.mod_codes
     )
     
