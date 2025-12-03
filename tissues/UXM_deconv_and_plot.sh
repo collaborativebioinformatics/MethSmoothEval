@@ -86,16 +86,3 @@ uxm deconv \
 
 uxm plot Blood.${ATLAS}.UMX_deconv.csv \
     -o ~/scripts/MethSmoothEval/tissues/Blood.${ATLAS}.UMX_deconv.pdf
-
-# # deconvolve all
-# uxm deconv \
-#     --include Blood-B Blood-Granul Blood-Mono+Macro Blood-NK Blood-T Neuron Oligodend \
-#     --atlas ${ATLAS_FILE} \
-#     --output BloodBrain.${ATLAS}.UMX_deconv.csv \
-#     --threads ${THREADS} \
-#     *.phased.pat.gz
-
-# # plot
-# uxm plot ALL.${ATLAS}.UMX_deconv.csv \
-#     --min_rate 5 \
-#     -o ~/scripts/MethSmoothEval/tissues/ALL.${ATLAS}.UMX_deconv.pdf
