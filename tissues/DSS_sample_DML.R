@@ -27,14 +27,23 @@ library(data.table)
 
 # functions
 run_DSS_pair <- function(
-    BSobj,
-    cov,
-    sample1,
-    sample2,
+    obj1,
+    obj2,
+    samplenames,
     min_cov = 5,
     OUTDIR = "./",
     cores = 4
 ) {
+    # make object
+    BSobj1 <- bsseq::combine(obj1, obj2)
+    sampleNames(BSobj1) <- samplenames
+    pData(BSobj1)$sample <- samplenames
+    
+    sample1 <- samplenames[1]
+    sample2 <- samplenames[2]
+    
+    cov <- getCoverage(BSobj1)
+    
     # --- Filter loci by coverage ---
     keepLoci <- which(
         cov[, sample1] >= min_cov &
@@ -42,7 +51,7 @@ run_DSS_pair <- function(
     )
     message("Loci kept: ", length(keepLoci))
     
-    BSobj2 <- BSobj[keepLoci, ]
+    BSobj2 <- BSobj1[keepLoci, ]
 
     # --- Run DSS with smoothing ---
     message("Running DMLtest with smoothing...")
@@ -89,7 +98,7 @@ run_DSS_pair <- function(
 }
 
 # settings
-n_cores <- 30
+n_cores <- 40
 mincov <- 5
 
 # dirs
@@ -99,100 +108,43 @@ oDIR <- paste0(DIR, "DSS/")
 ################################################################################
 ## Create bsseq object
 
-sampleList <- c("Bulk_FC_Control_02", "hg002_blood", "colo829bl")
+sample_names <- c("Bulk_FC_Control_02", "hg002_blood", "colo829bl")
 
 # get bed file paths
-bed1 <- paste0(DIR, "modkit/pileup/", sampleList[1], ".cpg.bed.gz") 
-bed2 <- paste0(DIR, "modkit/pileup/", sampleList[2], ".cpg.bed.gz") 
-bed3 <- paste0(DIR, "modkit/pileup/", sampleList[3], ".cpg.bed.gz") 
+bed1 <- paste0(DIR, "modkit/pileup/", sample_names[1], ".cpg.bed.gz") 
+bed2 <- paste0(DIR, "modkit/pileup/", sample_names[2], ".cpg.bed.gz") 
+bed3 <- paste0(DIR, "modkit/pileup/", sample_names[3], ".cpg.bed.gz") 
     
 # load the modkit pileups
-bs1 <- read.modkit(bed1, rmZeroCov = FALSE, strandCollapse = FALSE)
-bs2 <- read.modkit(bed2, rmZeroCov = FALSE, strandCollapse = FALSE)
-bs3 <- read.modkit(bed3, rmZeroCov = FALSE, strandCollapse = FALSE)
-    
-# combine into one object
-BSobj1 <- bsseq::combine(bs1, bs2, bs3)
-sampleNames(BSobj1) <- sampleList
-pData(BSobj1)$sample <- sampleList
-  # 29191643 methylation loci
-  # 3 samples
-
-# save the object
-saveRDS(BSobj1, file = paste0(OUTDIR, "ALL.unphased.rds"))
-
-################################################################################
-## Load object
-BSobj1 <- readRDS(paste0(OUTDIR, "ALL.unphased.rds"))
-all_cov <- getCoverage(BSobj1)
+bs1 <- read.modkit(bed1, strandCollapse = FALSE)
+bs2 <- read.modkit(bed2, strandCollapse = FALSE)
+bs3 <- read.modkit(bed3, strandCollapse = FALSE)
 
 ################################################################################
 ## pairwise
 
-res <- run_DSS_pair(
-    BSobj = BSobj1,
-    cov = all_cov,
-    sample1 = "Bulk_FC_Control_02",
-    sample2 = "hg002_blood",
+res <- run_DSS_pair(bs1, bs2,
+    sample_names[1:2],
     min_cov = mincov,
     OUTDIR = oDIR,
     cores = n_cores
 )
-# Loci kept: 28435808
+# Loci kept: 28422002
 
-res <- run_DSS_pair(
-    BSobj = BSobj1,
-    cov = all_cov,
-    sample1 = "Bulk_FC_Control_02",
-    sample2 = "colo829bl",
+res <- run_DSS_pair(bs1, bs3,
+    c(sample_names[1], sample_names[3]),
     min_cov = mincov,
     OUTDIR = oDIR,
     cores = n_cores
 )
 # Loci kept: 28370678
 
-res <- run_DSS_pair(
-    BSobj = BSobj1,
-    cov = all_cov,
-    sample1 = "hg002_blood",
-    sample2 = "colo829bl",
+res <- run_DSS_pair(bs2, bs3,
+    sample_names[2:3],
     min_cov = mincov,
     OUTDIR = oDIR,
     cores = n_cores
 )
 # Loci kept: 28541221
 
-################################################################################
-## 1 Brain v. 2 Blood
-
-# keep loci that meet cov threshold for all samples
-keepLoci <- which(all_cov[, sampleNames(BSobj1)[1]] >= min_cov & 
-                 all_cov[, sampleNames(BSobj1)[2]] >= min_cov &
-                all_cov[, sampleNames(BSobj1)[3]] >= min_cov)   
-length(keepLoci) 
-BSobj2 <- BSobj1[keepLoci, ]
-# 28286171
-
-# DSS with smoothing
-dmlTest.sm1 <- DMLtest(BSobj2, 
-                      group1=c(sampleNames(BSobj1)[1]), 
-                      group2=c(sampleNames(BSobj1)[2], sampleNames(BSobj1)[3]), 
-                      smoothing=TRUE,
-                      ncores=cores)
-
-# compressed output filename
-out1 <- paste0(OUTDIR, "BrainvBlood_DMLtestwSmoothing.tsv.gz")
-fwrite(dmlTest.sm1, out1, sep = "\t", quote = FALSE, na = "")
-
-# DSS without smoothing
-dmlTest.sm2 <- DMLtest(BSobj2, 
-                      group1=c(sampleNames(BSobj1)[1]), 
-                      group2=c(sampleNames(BSobj1)[2], sampleNames(BSobj1)[3]), 
-                      equal.disp=TRUE,
-                      smoothing=FALSE,
-                      ncores=cores)
-
-# compressed output filename
-out2 <- paste0(OUTDIR, "BrainvBlood_DMLtest.tsv.gz")
-fwrite(dmlTest.sm2, out2, sep = "\t", quote = FALSE, na = "")
 ################################################################################
